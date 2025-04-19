@@ -2,34 +2,44 @@ from flask import Flask, request, jsonify, session
 import json
 import random
 import torch
+import requests
+import os
 from transformers import BertTokenizer, BertForSequenceClassification
 import uuid
-import os
-import requests
 
-# Check if running on Render.com (production) or locally
-IS_PRODUCTION = os.environ.get('RENDER', False)
+# Check if we're in production (like on Render)
+is_production = os.environ.get('RENDER', 'False') == 'True'
+HF_REPO = "Udiesh/sarovar-bert-intent"
 
 # Load BERT model + tokenizer + label encoder
-if IS_PRODUCTION:
+if is_production:
     # In production, load from Hugging Face
-    model_name = "YourHuggingFaceUsername/sarovar-bert-intent"  # Replace with your username
-    tokenizer = BertTokenizer.from_pretrained(model_name)
-    model = BertForSequenceClassification.from_pretrained(model_name)
+    tokenizer = BertTokenizer.from_pretrained(HF_REPO)
+    model = BertForSequenceClassification.from_pretrained(HF_REPO)
     
-    # Download label encoder from Hugging Face if not exists
-    if not os.path.exists("label_encoder.pt"):
-        label_encoder_url = f"https://huggingface.co/{model_name}/resolve/main/label_encoder.pt"
+    # Download the label encoder from Hugging Face
+    label_encoder_url = f"https://huggingface.co/{HF_REPO}/resolve/main/label_encoder.pt"
+    response = requests.get(label_encoder_url)
+    with open("label_encoder.pt", "wb") as f:
+        f.write(response.content)
+    label_encoder = torch.load("label_encoder.pt")
+else:
+    # In development, load locally if available
+    try:
+        tokenizer = BertTokenizer.from_pretrained("bert_intent_model")
+        model = BertForSequenceClassification.from_pretrained("bert_intent_model")
+        label_encoder = torch.load("label_encoder.pt")
+    except:
+        # Fallback to Hugging Face if local model isn't available
+        tokenizer = BertTokenizer.from_pretrained(HF_REPO)
+        model = BertForSequenceClassification.from_pretrained(HF_REPO)
+        
+        # Download the label encoder from Hugging Face
+        label_encoder_url = f"https://huggingface.co/{HF_REPO}/resolve/main/label_encoder.pt"
         response = requests.get(label_encoder_url)
         with open("label_encoder.pt", "wb") as f:
             f.write(response.content)
-    
-    label_encoder = torch.load("label_encoder.pt")
-else:
-    # In development, load from local files
-    tokenizer = BertTokenizer.from_pretrained("bert_intent_model")
-    model = BertForSequenceClassification.from_pretrained("bert_intent_model")
-    label_encoder = torch.load("label_encoder.pt")
+        label_encoder = torch.load("label_encoder.pt")
 
 # Load intent data
 with open('full.json') as file:
@@ -37,9 +47,6 @@ with open('full.json') as file:
 
 app = Flask(__name__)
 app.secret_key = 'sarovar_south_spice_secret_key'  # Required for session
-
-# Store feedback ratings
-conversation_ratings = {}
 
 # Predict intent using BERT with confidence threshold
 def predict_intent_bert(sentence):
@@ -81,30 +88,6 @@ def get_response(intent_tag, session_id):
                     session.modified = True
                     
                 return response
-    
-    # Handle when user wants to book another table
-    if "book another table" in request.json.get('message', '').lower():
-        for intent in data['intents']:
-            if intent['tag'] == "book_table":
-                response = random.choice(intent['responses'])
-                if '{{booking_id}}' in response:
-                    booking_id = str(uuid.uuid4())[:8]
-                    response = response.replace('{{booking_id}}', booking_id)
-                    
-                    # Update or create the booking ID in session
-                    if 'bookings' not in session:
-                        session['bookings'] = {}
-                    session['bookings'][session_id] = booking_id
-                    session.modified = True
-                    
-                return response
-    
-    # Handle when user wants to modify existing booking
-    if "modify existing booking" in request.json.get('message', '').lower():
-        bookings = session.get('bookings', {})
-        if session_id in bookings:
-            previous_booking = bookings[session_id]
-            return f"To modify your reservation with booking ID: {previous_booking}, please call us at (123) 456-7890 or visit our website. What other information can I help you with?"
     
     # Normal response handling for other intents
     for intent in data['intents']:
@@ -155,12 +138,7 @@ def rate_conversation():
         return jsonify({'status': 'error', 'message': 'Invalid rating'}), 400
     
     # Store the rating
-    conversation_ratings[session_id] = {
-        'rating': rating,
-        'feedback': feedback,
-        'timestamp': random.randint(1000000000, 9999999999)  # Simple timestamp substitute
-    }
-    
+    # In a real application, you would save this to a database
     return jsonify({
         'status': 'success',
         'message': 'Thank you for your feedback!'
