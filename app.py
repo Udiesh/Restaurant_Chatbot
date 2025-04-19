@@ -4,11 +4,32 @@ import random
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
 import uuid
+import os
+import requests
+
+# Check if running on Render.com (production) or locally
+IS_PRODUCTION = os.environ.get('RENDER', False)
 
 # Load BERT model + tokenizer + label encoder
-tokenizer = BertTokenizer.from_pretrained("bert_intent_model")
-model = BertForSequenceClassification.from_pretrained("bert_intent_model")
-label_encoder = torch.load("label_encoder.pt")
+if IS_PRODUCTION:
+    # In production, load from Hugging Face
+    model_name = "YourHuggingFaceUsername/sarovar-bert-intent"  # Replace with your username
+    tokenizer = BertTokenizer.from_pretrained(model_name)
+    model = BertForSequenceClassification.from_pretrained(model_name)
+    
+    # Download label encoder from Hugging Face if not exists
+    if not os.path.exists("label_encoder.pt"):
+        label_encoder_url = f"https://huggingface.co/{model_name}/resolve/main/label_encoder.pt"
+        response = requests.get(label_encoder_url)
+        with open("label_encoder.pt", "wb") as f:
+            f.write(response.content)
+    
+    label_encoder = torch.load("label_encoder.pt")
+else:
+    # In development, load from local files
+    tokenizer = BertTokenizer.from_pretrained("bert_intent_model")
+    model = BertForSequenceClassification.from_pretrained("bert_intent_model")
+    label_encoder = torch.load("label_encoder.pt")
 
 # Load intent data
 with open('full.json') as file:
