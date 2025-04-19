@@ -639,27 +639,32 @@ input:checked + .slider:before {
 @media (max-width: 600px) {
     .chat-container {
         border-radius: 15px;
-        height: 95vh;
-        max-height: 95vh;
+        height: 100vh; /* Full height on mobile */
+        max-height: 100vh;
         max-width: 100%;
+        margin: 0;
     }
     
-    .chat-box {
-        height: calc(95vh - 220px);
-        padding: 20px;
+    body {
+        padding: 0; /* Remove padding on mobile */
+        overflow: hidden; /* Prevent body scrolling */
     }
     
-    .user-message, .bot-message {
-        max-width: 90%;
+    .chat-header {
+        padding: 12px 15px; /* Smaller header padding */
     }
     
-    .avatar-img {
+    .logo-img {
         width: 40px;
         height: 40px;
     }
     
+    .restaurant-info {
+        gap: 10px;
+    }
+    
     .restaurant-name {
-        font-size: 20px;
+        font-size: 18px;
     }
     
     .restaurant-tagline {
@@ -668,6 +673,58 @@ input:checked + .slider:before {
     
     .header-controls {
         gap: 8px;
+    }
+    
+    .online-indicator .status-text {
+        display: none; /* Hide status text on mobile */
+    }
+    
+    .chat-box {
+        height: calc(100vh - 190px); /* Adjust for smaller header and input area */
+        padding: 15px;
+    }
+    
+    .user-message, .bot-message {
+        max-width: 85%;
+        margin-bottom: 15px;
+    }
+    
+    .message-content {
+        padding: 12px 15px;
+    }
+    
+    .message-content p {
+        font-size: 15px;
+    }
+    
+    .avatar-img {
+        width: 36px;
+        height: 36px;
+        margin: 0 6px;
+    }
+    
+    .input-container {
+        padding: 12px;
+    }
+    
+    #user-input {
+        padding: 12px 16px;
+        font-size: 15px;
+    }
+    
+    #send-button, #voice-input-btn {
+        width: 42px;
+        height: 42px;
+        margin-left: 8px;
+    }
+    
+    .suggestion-chips {
+        padding: 0 12px 12px;
+    }
+    
+    .suggestion-chip {
+        padding: 8px 14px;
+        font-size: 13px;
     }
     
     .theme-switch {
@@ -696,6 +753,98 @@ input:checked + .slider:before {
     
     #feedback-text {
         min-height: 80px;
+    }
+    
+    /* Improve modal on mobile */
+    .modal-content {
+        margin: 10% auto;
+        width: 90%;
+        padding: 20px 15px;
+    }
+    
+    .close-modal {
+        top: 10px;
+        right: 15px;
+    }
+}
+
+/* Small mobile screens */
+@media (max-width: 400px) {
+    .chat-container {
+        border-radius: 0; /* No rounded corners on very small screens */
+    }
+    
+    .chat-header {
+        padding: 10px;
+    }
+    
+    .restaurant-name {
+        font-size: 16px;
+    }
+    
+    .logo-img {
+        width: 35px;
+        height: 35px;
+    }
+    
+    #rate-chat-btn {
+        font-size: 16px;
+    }
+    
+    .message-content p {
+        font-size: 14px;
+    }
+    
+    .chat-box {
+        padding: 10px;
+    }
+    
+    .avatar-img {
+        width: 32px;
+        height: 32px;
+        margin: 0 5px;
+    }
+    
+    .suggestion-chip {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .input-container {
+        padding: 10px;
+    }
+    
+    #user-input {
+        padding: 10px 14px;
+    }
+    
+    #send-button, #voice-input-btn {
+        width: 38px;
+        height: 38px;
+    }
+}
+
+/* Fix for iPhone with notch */
+@media screen and (min-device-width: 375px) and (max-device-width: 812px) and (-webkit-min-device-pixel-ratio: 3) {
+    .chat-container {
+        height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    .chat-box {
+        height: calc(100vh - 190px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    }
+}
+
+/* Add support for viewport height in mobile browsers */
+@supports (-webkit-touch-callout: none) {
+    .chat-container {
+        height: -webkit-fill-available;
+    }
+    
+    .chat-box {
+        height: calc(-webkit-fill-available - 190px);
     }
 }
 
