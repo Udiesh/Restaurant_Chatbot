@@ -25,3 +25,6 @@ The BERT model files are not included in this repository due to their size. You'
 1. Create a "bert_intent_model" folder
 2. Add your trained BERT model files there
 3. Add the label_encoder.pt file to the root directory
+
+#To see the live version of the chabot
+Access at https://restaurant-chatbot-i93j.onrender.com
