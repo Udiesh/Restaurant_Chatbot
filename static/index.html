@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sarovar South Spice - Chatbot</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="icon" href="static/6.jpeg" type="image/x-icon" />
+  </head>
+  <body>
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="restaurant-info">
+          <img
+            class="logo-img"
+            src="static/6.jpeg"
+            alt="Sarovar South Spice Logo"
+          />
+          <div class="restaurant-details">
+            <h1 class="restaurant-name">Sarovar South Spice</h1>
+            <p class="restaurant-tagline">Authentic South Indian Cuisine</p>
+          </div>
+        </div>
+        <div class="header-controls">
+          <div class="online-indicator">
+            <span class="status-dot"></span>
+            <span class="status-text">Online</span>
+          </div>
+          <button id="rate-chat-btn" title="Rate this conversation">
+            <i class="fas fa-star"></i>
+          </button>
+          <div class="theme-switch-wrapper">
+            <label class="theme-switch" for="checkbox">
+              <input type="checkbox" id="checkbox" />
+              <span class="slider">
+                <i class="fas fa-sun icon-sun"></i>
+                <i class="fas fa-moon icon-moon"></i>
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-box" id="chat-box">
+        <div class="bot-message welcome-message">
+          <img src="static/chatbot.webp" alt="Bot Avatar" class="avatar-img" />
+          <div class="message-content">
+            <p>Welcome to Sarovar South Spice! How can I assist you today?</p>
+            <span class="timestamp"></span>
+          </div>
+        </div>
+      </div>
+
+      <form id="message-form" class="input-container" onsubmit="return false;">
+        <input
+          type="text"
+          id="user-input"
+          placeholder="Type your message..."
+          autocomplete="off"
+        />
+        <button id="voice-input-btn" type="button" title="Voice Input">
+          <i class="fas fa-microphone"></i>
+        </button>
+        <button id="send-button" type="button" onclick="sendMessage()">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </form>
+
+      <div class="suggestion-chips">
+        <button
+          class="suggestion-chip"
+          onclick="sendSuggestion('Show me the menu')"
+        >
+          Menu
+        </button>
+        <button
+          class="suggestion-chip"
+          onclick="sendSuggestion('Book a table')"
+        >
+          Book Table
+        </button>
+        <button
+          class="suggestion-chip"
+          onclick="sendSuggestion('Opening hours')"
+        >
+          Hours
+        </button>
+        <button
+          class="suggestion-chip"
+          onclick="sendSuggestion('Contact details')"
+        >
+          Contact
+        </button>
+        <button class="suggestion-chip" onclick="openGallery()">
+          Photo Gallery
+        </button>
+      </div>
+    </div>
+
+    <!-- Photo Gallery Modal -->
+    <div id="gallery-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>Restaurant & Dishes Gallery</h2>
+        <div class="gallery-container">
+          <div class="gallery-image">
+            <img src="static/gallery/dosa.jpg" alt="Dosa" />
+            <p>Masala Dosa</p>
+          </div>
+          <div class="gallery-image">
+            <img src="static/gallery/idli.jpg" alt="Idli" />
+            <p>Idli Sambar</p>
+          </div>
+          <div class="gallery-image">
+            <img src="static/gallery/biryani.jpg" alt="Biryani" />
+            <p>Special Biryani</p>
+          </div>
+          <div class="gallery-image">
+            <img
+              src="static/gallery/restaurant.jpg"
+              alt="Restaurant Interior"
+            />
+            <p>Restaurant Interior</p>
+          </div>
+          <div class="gallery-image">
+            <img src="static/gallery/drinks.jpg" alt="Traditional Drinks" />
+            <p>Traditional Drinks</p>
+          </div>
+          <div class="gallery-image">
+            <img src="static/gallery/dessert.jpg" alt="South Indian Desserts" />
+            <p>South Indian Desserts</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rating Modal -->
+    <div id="rating-modal" class="modal">
+      <div class="modal-content rating-content">
+        <span class="close-modal" id="close-rating">&times;</span>
+        <h2>How was your experience?</h2>
+        <div class="rating-stars">
+          <span class="star" data-value="1"><i class="far fa-star"></i></span>
+          <span class="star" data-value="2"><i class="far fa-star"></i></span>
+          <span class="star" data-value="3"><i class="far fa-star"></i></span>
+          <span class="star" data-value="4"><i class="far fa-star"></i></span>
+          <span class="star" data-value="5"><i class="far fa-star"></i></span>
+        </div>
+        <textarea
+          id="feedback-text"
+          placeholder="Any additional feedback? (optional)"
+        ></textarea>
+        <button id="submit-rating" disabled>Submit Rating</button>
+      </div>
+    </div>
+
+    <script>
+      // Session data storage
+      const chatSession = {
+        hasBooking: false,
+        bookingId: null,
+        lastIntent: null,
+      };
+
+      // Track bookings by extracting IDs from responses
+      function extractBookingId(text) {
+        const bookingRegex = /Booking ID(?:\ is|\:)\ ([A-Za-z0-9]+)/i;
+        const referenceRegex = /Reference ID(?:\ is|\:)\ ([A-Za-z0-9]+)/i;
+
+        const bookingMatch = text.match(bookingRegex);
+        const referenceMatch = text.match(referenceRegex);
+
+        if (bookingMatch && bookingMatch[1]) {
+          return bookingMatch[1];
+        }
+
+        if (referenceMatch && referenceMatch[1]) {
+          return referenceMatch[1];
+        }
+
+        return null;
+      }
+
+      // Theme Switcher
+      const themeToggle = document.getElementById("checkbox");
+      const html = document.documentElement;
+
+      // Check for saved theme preference or use device preference
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme) {
+        html.dataset.theme = savedTheme;
+        themeToggle.checked = savedTheme === "dark";
+      } else {
+        // Use device preference as default
+        const prefersDarkScheme = window.matchMedia(
+          "(prefers-color-scheme: dark)"
+        ).matches;
+        if (prefersDarkScheme) {
+          html.dataset.theme = "dark";
+          themeToggle.checked = true;
+        }
+      }
+
+      // Listen for theme toggle changes
+      themeToggle.addEventListener("change", function () {
+        if (this.checked) {
+          html.dataset.theme = "dark";
+          localStorage.setItem("theme", "dark");
+        } else {
+          html.dataset.theme = "light";
+          localStorage.setItem("theme", "light");
+        }
+      });
+
+      // Set timestamp for welcome message
+      document.querySelector(".timestamp").textContent =
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+      // Add event listener for Enter key
+      document
+        .getElementById("user-input")
+        .addEventListener("keypress", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault(); // Prevent form submission which causes page reload
+            sendMessage();
+          }
+        });
+
+      function sendSuggestion(text) {
+        document.getElementById("user-input").value = text;
+
+        // Special handling for booking flow options
+        if (text === "Yes, book another table") {
+          // Reset the booking flag temporarily to allow new booking
+          chatSession.hasBooking = false;
+        }
+
+        sendMessage();
+      }
+
+      // Voice input functionality
+      const voiceButton = document.getElementById("voice-input-btn");
+      const userInput = document.getElementById("user-input");
+
+      // Check if browser supports speech recognition
+      if (
+        "webkitSpeechRecognition" in window ||
+        "SpeechRecognition" in window
+      ) {
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
+
+        // Configure voice input button
+        voiceButton.addEventListener("click", () => {
+          if (voiceButton.classList.contains("recording")) {
+            recognition.stop();
+          } else {
+            recognition.start();
+            voiceButton.classList.add("recording");
+            voiceButton.innerHTML =
+              '<i class="fas fa-microphone recording-icon"></i>';
+            userInput.placeholder = "Listening...";
+          }
+        });
+
+        // Handle speech recognition results
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          userInput.value = transcript;
+          userInput.placeholder = "Type your message...";
+          voiceButton.classList.remove("recording");
+          voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+
+          // Optionally auto-send the voice message
+          setTimeout(() => {
+            sendMessage();
+          }, 500);
+        };
+
+        // Handle speech recognition ending
+        recognition.onend = () => {
+          voiceButton.classList.remove("recording");
+          voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+          userInput.placeholder = "Type your message...";
+        };
+
+        // Handle speech recognition errors
+        recognition.onerror = (event) => {
+          console.error("Speech recognition error", event.error);
+          voiceButton.classList.remove("recording");
+          voiceButton.innerHTML = '<i class="fas fa-microphone"></i>';
+          userInput.placeholder = "Type your message...";
+
+          // Show error message
+          if (event.error === "no-speech") {
+            userInput.placeholder = "No speech detected. Try again.";
+          } else if (event.error === "not-allowed") {
+            userInput.placeholder = "Microphone access denied.";
+          }
+        };
+      } else {
+        // Hide the voice button if not supported
+        voiceButton.style.display = "none";
+      }
+
+      // Photo Gallery Modal
+      const modal = document.getElementById("gallery-modal");
+      const closeModal = document.querySelector(".close-modal");
+
+      function openGallery() {
+        modal.style.display = "block";
+      }
+
+      closeModal.onclick = function () {
+        modal.style.display = "none";
+      };
+
+      window.onclick = function (event) {
+        if (event.target == modal) {
+          modal.style.display = "none";
+        }
+      };
+
+      function sendMessage() {
+        var userInput = document.getElementById("user-input").value.trim();
+        if (!userInput) return; // Don't send empty messages
+
+        const timestamp = new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        // Add user message to chat
+        const userMessageHtml = `
+          <div class="user-message">
+            <div class="message-content">
+              <p>${userInput}</p>
+              <span class="timestamp">${timestamp}</span>
+            </div>
+            <img src="static/chater.webp" alt="User Avatar" class="avatar-img">
+          </div>
+        `;
+        document
+          .getElementById("chat-box")
+          .insertAdjacentHTML("beforeend", userMessageHtml);
+
+        // Clear input
+        document.getElementById("user-input").value = "";
+
+        // Always show typing indicator first
+        const typingIndicator = document.createElement("div");
+        typingIndicator.className = "bot-message typing-indicator";
+        typingIndicator.innerHTML = `
+          <img src="static/chatbot.webp" alt="Bot Avatar" class="avatar-img">
+          <div class="message-content">
+            <div class="typing-dots">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        `;
+        document.getElementById("chat-box").appendChild(typingIndicator);
+
+        // Scroll to bottom
+        scrollChatToBottom();
+
+        // Send to backend
+        fetch("/chat", {
+          method: "POST",
+          body: JSON.stringify({ message: userInput }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            // Add a small delay to simulate processing time
+            setTimeout(() => {
+              // Remove typing indicator
+              const typingIndicator =
+                document.querySelector(".typing-indicator");
+              if (typingIndicator) {
+                typingIndicator.remove();
+              }
+
+              // Format links if present
+              let formattedResponse = data.response.replace(
+                /(https?:\/\/[^\s]+)/g,
+                '<a href="$1" target="_blank">$1</a>'
+              );
+
+              // Format line breaks
+              formattedResponse = formattedResponse.replace(/\n/g, "<br>");
+
+              // Track the intent and update session data
+              chatSession.lastIntent = data.intent;
+
+              // If this is a new booking response, extract the booking ID
+              if (data.intent === "book_table") {
+                const bookingId = extractBookingId(data.response);
+                if (bookingId) {
+                  chatSession.hasBooking = true;
+                  chatSession.bookingId = bookingId;
+                  console.log("Booking recorded:", bookingId);
+                }
+              }
+
+              // Add bot response
+              const botMessageHtml = `
+                <div class="bot-message">
+                  <img src="static/chatbot.webp" alt="Bot Avatar" class="avatar-img">
+                  <div class="message-content">
+                    <p>${formattedResponse}</p>
+                    <span class="timestamp">${timestamp}</span>
+                  </div>
+                </div>
+              `;
+              document
+                .getElementById("chat-box")
+                .insertAdjacentHTML("beforeend", botMessageHtml);
+
+              // Automatically add booking button options if the response is about existing booking
+              if (
+                data.response.includes("Would you like to book another table")
+              ) {
+                const optionsHtml = `
+                  <div class="bot-message options-message">
+                    <img src="static/chatbot.webp" alt="Bot Avatar" class="avatar-img">
+                    <div class="message-content">
+                      <div class="option-buttons">
+                        <button class="suggestion-chip" onclick="sendSuggestion('Yes, book another table')">Yes, book another table</button>
+                        <button class="suggestion-chip" onclick="sendSuggestion('No, modify existing booking')">Modify existing booking</button>
+                      </div>
+                      <span class="timestamp">${timestamp}</span>
+                    </div>
+                  </div>
+                `;
+                document
+                  .getElementById("chat-box")
+                  .insertAdjacentHTML("beforeend", optionsHtml);
+              }
+
+              // Scroll to the bottom after adding new message
+              scrollChatToBottom();
+            }, 1000); // 1 second delay to show typing indicator
+          })
+          .catch((error) => {
+            setTimeout(() => {
+              // Remove typing indicator
+              const typingIndicator =
+                document.querySelector(".typing-indicator");
+              if (typingIndicator) {
+                typingIndicator.remove();
+              }
+
+              // Add error message
+              const errorMessageHtml = `
+                <div class="bot-message error">
+                  <img src="static/chatbot.webp" alt="Bot Avatar" class="avatar-img">
+                  <div class="message-content">
+                    <p>Sorry, I couldn't process your request. Please try again.</p>
+                    <span class="timestamp">${timestamp}</span>
+                  </div>
+                </div>
+              `;
+              document
+                .getElementById("chat-box")
+                .insertAdjacentHTML("beforeend", errorMessageHtml);
+
+              // Scroll to the bottom after adding new message
+              scrollChatToBottom();
+            }, 1000);
+          });
+      }
+
+      // Helper function to scroll to bottom of chat
+      function scrollChatToBottom() {
+        const chatBox = document.getElementById("chat-box");
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      // Rating functionality
+      const rateButton = document.getElementById("rate-chat-btn");
+      const ratingModal = document.getElementById("rating-modal");
+      const closeRating = document.getElementById("close-rating");
+      const stars = document.querySelectorAll(".star");
+      const submitRating = document.getElementById("submit-rating");
+      const feedbackText = document.getElementById("feedback-text");
+      let currentRating = 0;
+
+      // Open rating modal
+      rateButton.addEventListener("click", () => {
+        ratingModal.style.display = "block";
+      });
+
+      // Close rating modal
+      closeRating.onclick = function () {
+        ratingModal.style.display = "none";
+        resetRating();
+      };
+
+      // Close modal if clicking outside
+      window.addEventListener("click", function (event) {
+        if (event.target == ratingModal) {
+          ratingModal.style.display = "none";
+          resetRating();
+        }
+      });
+
+      // Handle star ratings
+      stars.forEach((star) => {
+        // Hover effect
+        star.addEventListener("mouseover", function () {
+          const ratingValue = parseInt(this.getAttribute("data-value"));
+          highlightStars(ratingValue);
+        });
+
+        // Click to set rating
+        star.addEventListener("click", function () {
+          currentRating = parseInt(this.getAttribute("data-value"));
+          highlightStars(currentRating);
+          submitRating.disabled = false;
+        });
+      });
+
+      // Reset stars on mouseout if no rating selected
+      document
+        .querySelector(".rating-stars")
+        .addEventListener("mouseout", function () {
+          if (currentRating === 0) {
+            resetStars();
+          } else {
+            highlightStars(currentRating);
+          }
+        });
+
+      // Submit rating
+      submitRating.addEventListener("click", function () {
+        if (currentRating === 0) return;
+
+        fetch("/rate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rating: currentRating,
+            feedback: feedbackText.value,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              // Add a thank you message in the chat
+              const timestamp = new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+
+              const thankYouHtml = `
+              <div class="bot-message">
+                <img src="static/chatbot.webp" alt="Bot Avatar" class="avatar-img">
+                <div class="message-content">
+                  <p>Thank you for your ${currentRating}-star rating! Your feedback helps us improve.</p>
+                  <span class="timestamp">${timestamp}</span>
+                </div>
+              </div>
+            `;
+
+              document
+                .getElementById("chat-box")
+                .insertAdjacentHTML("beforeend", thankYouHtml);
+
+              scrollChatToBottom();
+            }
+
+            // Close the modal
+            ratingModal.style.display = "none";
+            resetRating();
+          })
+          .catch((error) => {
+            console.error("Error submitting rating:", error);
+            ratingModal.style.display = "none";
+            resetRating();
+          });
+      });
+
+      // Helper functions for rating
+      function highlightStars(count) {
+        resetStars();
+        for (let i = 0; i < count; i++) {
+          stars[i].innerHTML = '<i class="fas fa-star"></i>';
+        }
+      }
+
+      function resetStars() {
+        stars.forEach((star) => {
+          star.innerHTML = '<i class="far fa-star"></i>';
+        });
+      }
+
+      function resetRating() {
+        currentRating = 0;
+        resetStars();
+        feedbackText.value = "";
+        submitRating.disabled = true;
+      }
+    </script>
+  </body>
+</html>
