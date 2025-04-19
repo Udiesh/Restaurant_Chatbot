@@ -3,32 +3,131 @@ import json
 import random
 import uuid
 import os
+import re
 
 app = Flask(__name__)
 app.secret_key = 'sarovar_south_spice_secret_key'  # Required for session
 
-# Simple intent recognition without BERT
-def simple_intent_recognition(text):
+# Enhanced intent recognition with context awareness and query understanding
+def enhanced_intent_recognition(text, session_id=None):
     text = text.lower()
+    scores = {
+        "greeting": 0,
+        "book_table": 0,
+        "menu": 0,
+        "hours": 0,
+        "bye": 0,
+        "contact": 0,
+        "fallback": 0
+    }
     
+    # Direct keyword matching (existing approach)
     if any(word in text for word in ["hello", "hi", "hey", "greetings", "namaste", "vanakkam"]):
-        return "greeting"
-    elif any(word in text for word in ["book", "reservation", "table", "reserve"]):
-        return "book_table"
-    elif any(word in text for word in ["menu", "food", "eat", "order", "dish"]):
-        return "menu"
-    elif any(word in text for word in ["hour", "timing", "open", "close", "when"]):
-        return "hours"
-    elif any(word in text for word in ["bye", "goodbye", "see you", "farewell"]):
-        return "bye"
-    elif any(word in text for word in ["contact", "phone", "email", "reach", "feedback"]):
-        return "contact"
+        scores["greeting"] += 10
+    
+    if any(word in text for word in ["book", "reservation", "table", "reserve"]):
+        scores["book_table"] += 10
+    
+    if any(word in text for word in ["menu", "food", "eat", "order", "dish", "cuisine"]):
+        scores["menu"] += 10
+    
+    if any(word in text for word in ["hour", "timing", "open", "close", "when", "schedule"]):
+        scores["hours"] += 10
+    
+    if any(word in text for word in ["bye", "goodbye", "see you", "farewell", "thanks", "thank you"]):
+        scores["bye"] += 10
+    
+    if any(word in text for word in ["contact", "phone", "email", "reach", "feedback", "call"]):
+        scores["contact"] += 10
+    
+    # Handle ambiguous cases with contextual understanding
+    
+    # Time-related queries
+    if re.search(r'(what|which) (time|day)', text) or "when" in text:
+        if any(word in text for word in ["come", "visit", "best", "busy", "quiet"]):
+            scores["hours"] += 8
+        if any(word in text for word in ["book", "reserve", "table", "seat"]):
+            scores["book_table"] += 8
+    
+    # Food-related queries without explicit menu keywords
+    if any(word in text for word in ["recommend", "special", "signature", "popular", "best", "authentic"]):
+        scores["menu"] += 8
+    
+    # Location and facilities queries
+    if any(word in text for word in ["location", "address", "direction", "parking", "near", "where"]):
+        scores["contact"] += 8
+    
+    # Group booking related queries
+    if any(phrase in text for phrase in ["large group", "many people", "party", "celebration", "event", "accommodate"]):
+        scores["book_table"] += 8
+    
+    # Dietary questions
+    if any(word in text for word in ["vegetarian", "vegan", "allergy", "gluten", "spicy", "diet"]):
+        scores["menu"] += 8
+    
+    # Evening/celebration related
+    if any(word in text for word in ["tonight", "evening", "celebrate", "anniversary", "birthday", "date"]):
+        if not any(word in text for word in ["menu", "food", "dish"]):
+            scores["book_table"] += 6
+    
+    # Check for session context (if user previously booked)
+    if session_id:
+        bookings = session.get('bookings', {})
+        if session_id in bookings and any(word in text for word in ["modify", "change", "cancel", "update"]):
+            scores["book_table"] += 10
+    
+    # If all scores are low, increase fallback score
+    if all(score < 5 for intent, score in scores.items() if intent != "fallback"):
+        scores["fallback"] += 5
+    
+    # Return the intent with the highest score
+    max_intent = max(scores, key=scores.get)
+    max_score = scores[max_intent]
+    
+    # Only return an intent if the score is above a threshold
+    if max_score > 4:
+        return max_intent
     else:
         return "fallback"
 
-# Load intent data
-with open('full.json') as file:
-    data = json.load(file)
+# Load intent data with error handling
+try:
+    with open('full.json') as file:
+        data = json.load(file)
+except (FileNotFoundError, json.JSONDecodeError):
+    # Create a simple fallback data structure if file is missing or invalid
+    data = {
+        "intents": [
+            {
+                "tag": "greeting",
+                "responses": ["Hello! Welcome to Sarovar South Spice. How can I help you today?"]
+            },
+            {
+                "tag": "book_table",
+                "responses": ["I'd be happy to help you book a table. Your Booking ID is {{booking_id}}. What date and time would you prefer?"]
+            },
+            {
+                "tag": "menu",
+                "responses": ["Our menu features authentic South Indian dishes including dosas, idlis, and various curries. Would you like to know about any specific dish?"]
+            },
+            {
+                "tag": "hours",
+                "responses": ["We're open from 11:00 AM to 10:00 PM every day."]
+            },
+            {
+                "tag": "contact",
+                "responses": ["You can reach us at (123) 456-7890 or email us at info@sarovarsouthspice.com."]
+            },
+            {
+                "tag": "bye",
+                "responses": ["Thank you for chatting with us. Have a great day!"]
+            },
+            {
+                "tag": "fallback",
+                "responses": ["I'm sorry, I didn't understand that. Could you please rephrase?"]
+            }
+        ]
+    }
 
 # Store feedback ratings
 conversation_ratings = {}
@@ -113,7 +212,7 @@ def chat():
         session_id = str(uuid.uuid4())
         session['session_id'] = session_id
     
-    intent_tag = simple_intent_recognition(message)
+    intent_tag = enhanced_intent_recognition(message, session_id)
     response = get_response(intent_tag, session_id)
     
     return jsonify({
@@ -146,5 +245,13 @@ def rate_conversation():
         'message': 'Thank you for your feedback!'
     })
 
+# Create a test route to help with debugging
+@app.route('/test')
+def test():
+    return jsonify({
+        'status': 'ok',
+        'message': 'Test endpoint is working'
+    })
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)), debug=False)
